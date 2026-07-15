@@ -1,8 +1,7 @@
 from flask import Flask
 from requests import get
-from os import system
+from bs4 import BeautifulSoup
 from datetime import datetime
-# from json import load
 
 app = Flask(__name__)
 
@@ -63,6 +62,11 @@ def get_security_txt_file(domain:str):
 
         datas.update({'score percentage':f'{int(score/5)}/5'})
         return datas
+
+@app.route('/check_for_pp/pname')
+def check_pulic_program(pname:str):
+    bug_crowd_url = f'https://bugcrowd.com/engagements/{pname.strip()}'
+    hacker_one_url = f'https://hackerone.com/{pname.strip()}'
 
 if __name__ == '__main__':
     app.run(debug=True)
