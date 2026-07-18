@@ -1,72 +1,46 @@
-from flask import Flask
-from requests import get
-from bs4 import BeautifulSoup
 from datetime import datetime
 
-app = Flask(__name__)
+def get_ctime_cdate(date=None,time=None,splitter=False):
+    if not splitter:
+        ctd = datetime.now()
+        cdate,ctime = str(ctd.date()),str(ctd.strftime('%I:%M:%S'))
+    else:
+        cdate,ctime = str(date),str(time)
+    return {
+        'date':cdate,
+        'time':ctime,
+        'sep_date':{
+            'day':cdate.split('-')[-1],
+            'mon':cdate.split('-')[1],
+            'year':cdate.split('-')[0]
+        },
+        'sep_time':{
+            'H':ctime.split(':')[0],
+            'M':ctime.split(':')[1],
+            'S':ctime.split(':')[-1]
+        }
+    }
 
-@app.route('/get_sec_txt/<domain>')
-def get_security_txt_file(domain:str):
-    score = 0  
-    sec_file = 'https://' + domain + '/.well-known/security.txt'
-    req = get(url=sec_file)
-    if req.status_code == 200:
-        sendreq = req.text.lower()
-        datas = dict()
+def data_time_validator(date, time):
+    get_ctd = get_ctime_cdate(splitter=False)
+    get_o_ctd = get_ctime_cdate(date, time, splitter=True)
 
-        for dt in sendreq.splitlines():
-            # system('cls')
-            # print(dt)
-            getdt = dt.lower()
-            if getdt.startswith('contact:'):
-                data  = dt.split(':',maxsplit=1)
-                if 'mailto:' in data[1].strip():
-                    getmail = data[1].split(':')[1]
-                else: getmail = data[1]
+    current = datetime(
+        int(get_ctd['sep_date']['year']),
+        int(get_ctd['sep_date']['mon']),
+        int(get_ctd['sep_date']['day']),
+        int(get_ctd['sep_time']['H']),
+        int(get_ctd['sep_time']['M']),
+        int(get_ctd['sep_time']['S'])
+    )
 
-                if getmail:
-                    datas.update({'contact':getmail.strip()})
-                    score += 5
+    expiry = datetime(
+        int(get_o_ctd['sep_date']['year']),
+        int(get_o_ctd['sep_date']['mon']),
+        int(get_o_ctd['sep_date']['day']),
+        int(get_o_ctd['sep_time']['H']),
+        int(get_o_ctd['sep_time']['M']),
+        int(get_o_ctd['sep_time']['S'])
+    )
 
-            if getdt.startswith('expires:'):
-                data  = dt.split(':',maxsplit=1)
-                date = data[1].split('t')[0].split('-')
-                crt_date = date[-1]+'/'+date[1]+'/'+date[0].strip()
-                time = datetime.strptime(data[1].split('t')[1].split('.')[0],"%H:%M:%S")
-
-                if crt_date and time:
-                    datas.update({'expires':{
-                        'date':crt_date,
-                        'time':time.strftime("%I:%M:%S %p")
-                    }})
-                    score += 5
-
-            if getdt.startswith('policy:'):
-                data  = dt.split(':',maxsplit=1)
-                if data[1]:
-                    datas.update({'policy':data[1].strip()})
-                    score += 5
-
-            if getdt.startswith('encryption:'):
-                data  = dt.split(':',maxsplit=1)
-                if data[1]:
-                    datas.update({'policy':data[1].strip()})
-                    score += 5
-
-            if getdt.startswith('preferred-languages:'):
-                data  = dt.split(':',maxsplit=1)
-                lang = data[1].strip()
-                if lang:
-                    datas.update({'preferred-languages:':'English' if lang == 'en' else lang})
-                    score += 5
-
-        datas.update({'score percentage':f'{int(score/5)}/5'})
-        return datas
-
-@app.route('/check_for_pp/pname')
-def check_pulic_program(pname:str):
-    bug_crowd_url = f'https://bugcrowd.com/engagements/{pname.strip()}'
-    hacker_one_url = f'https://hackerone.com/{pname.strip()}'
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    return expiry > current
