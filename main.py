@@ -1,15 +1,15 @@
-from flask import Flask
+from flask import Flask, jsonify
 from requests import get
 from bs4 import BeautifulSoup
 from libs import data_time_validator
 from datetime import datetime
 
-#target site to test : https://www.ingeteam.com/.well-known/security.txt
+# target site to test : https://www.ingeteam.com/.well-known/security.txt
 
 app = Flask(__name__)
 
 @app.route('/get_sec_txt/<domain>')
-def get_security_txt_file(domain:str):
+def get_security_txt_file(domain: str):
     score = 0
     sec_file = 'https://' + domain + '/.well-known/security.txt'
     req = get(url=sec_file)
@@ -64,7 +64,7 @@ def get_security_txt_file(domain:str):
             if getdt.startswith('encryption:'):
                 data = dt.split(':', maxsplit=1)
                 if data[1]:
-                    datas.update({'policy': data[1].strip()})
+                    datas.update({'encryption': data[1].strip()})
                     score += 5
 
             if getdt.startswith('preferred-languages:'):
@@ -72,17 +72,44 @@ def get_security_txt_file(domain:str):
                 lang = data[1].strip()
                 if lang:
                     datas.update({
-                        'preferred-languages:': 'English' if lang == 'en' else lang
+                        'preferred-languages': 'English' if lang == 'en' else lang
                     })
                     score += 5
 
         datas.update({'score percentage': f'{int(score/5)}/5'})
         return datas
 
-@app.route('/check_for_pp/pname')
-def check_pulic_program(pname:str):
-    bug_crowd_url = f'https://bugcrowd.com/engagements/{pname.strip()}'
-    hacker_one_url = f'https://hackerone.com/{pname.strip()}'
+def check_public_program(pname: str):
+    pname = (pname or "").strip()
+    if not pname:
+        return {"error": "Program name is required"}
+
+    bugcrowd_url = f"https://bugcrowd.com/engagements/{pname}"
+    hackerone_url = f"https://hackerone.com/{pname}"
+
+    try:
+        bugcrowd_resp = get(bugcrowd_url, timeout=10)
+        hackerone_resp = get(hackerone_url, timeout=10)
+
+        return {
+            "program_name": pname,
+            "bugcrowd": {
+                "url": bugcrowd_url,
+                "status_code": bugcrowd_resp.status_code,
+                "exists": bugcrowd_resp.status_code == 200,
+            },
+            "hackerone": {
+                "url": hackerone_url,
+                "status_code": hackerone_resp.status_code,
+                "exists": hackerone_resp.status_code == 200,
+            },
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.route('/check_for_pp/<pname>')
+def public_program_route(pname: str):
+    return jsonify(check_public_program(pname))
 
 if __name__ == '__main__':
     app.run(debug=True)
